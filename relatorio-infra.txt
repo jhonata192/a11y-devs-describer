@@ -1,0 +1,291 @@
+================================================================================
+  RELATORIO DE INFRAESTRUTURA - BOT ACESS (Acessibilidade via IA Local)
+================================================================================
+  Data: Maio/2026
+  Projeto: Bot Telegram para audiodescricao de documentos para pessoas cegas
+  Repositorio: /bot-acess
+================================================================================
+
+
+1. SUMARIO EXECUTIVO
+--------------------------------------------------------------------------------
+O Bot Acess e um sistema de processamento de documentos com IA generativa
+100% local (sem APIs externas). Ele utiliza tres modelos de linguagem via
+Ollama para analisar, descrever e traduzir imagens e PDFs, tornando-os
+acessiveis para leitores de tela.
+
+O sistema opera atualmente em condicoes de hardware restritas, com swap
+de memoria sendo utilizado intensivamente. Este documento descreve as
+especificacoes minimas atuais e as recomendadas para producao.
+
+Todos os modelos operam com keep_alive=0, sendo descarregados da RAM
+imediatamente apos cada chamada. Isso reduz consumo de RAM ociosa mas
+aumenta latencia (cada modelo precisa ser recarregado do disco/swap a
+cada uso).
+
+
+2. ARQUITETURA ATUAL
+--------------------------------------------------------------------------------
+Linguagem:    Python 3.12
+Framework:    aiogram 3.x (Telegram Bot API)
+Orquestrador: Agente Mestre (3 camadas: PreAnalise + RouterIA + PipelineExecutor)
+Modelos:     Ollama (inferencia local)
+
+Pipeline de processamento:
+  1. Pre-analise (PyMuPDF + Pillow) - deterministico, sem IA
+  2. Roteamento (phi3:mini) - decide pipeline e nivel de detalhe
+  3. Descricao visual (llava:7b) - descreve layout, cores, logotipos
+  4. Extracao de texto (llava:7b) - transcricao literal do texto visivel
+  5. Traducao (qwen2.5:1.5b) - portugues brasileiro
+  6. Exportacao (DOCX, PDF, TXT)
+
+Dependencias de sistema:
+  - Python 3.12+
+  - Ollama >= 0.23
+  - Tesseract OCR (opcional, removido da pipeline principal)
+  - Git (para deploy)
+
+
+3. MODELOS DE IA UTILIZADOS
+--------------------------------------------------------------------------------
+Modelo          Funcao              Tamanho   RAM quando carregado
+-------         ------              -------   --------------------
+llava:7b        Visao (descricao    4.7 GB    5.0 - 7.0 GB
+                + extracao texto)
+
+phi3:mini       Roteador IA         2.2 GB    2.5 - 3.5 GB
+                (decide pipeline)
+
+qwen2.5:1.5b    Traducao            986 MB    1.2 - 2.0 GB
+                EN -> PT-BR
+
+Nota: Com keep_alive=0, os modelos NAO ficam em RAM simultaneamente.
+A cada etapa da pipeline, apenas o modelo daquela etapa e carregado.
+O pico de RAM durante a execucao e o maior modelo individual
+(llava:7b ~5-7 GB) + overhead do sistema (~2 GB), totalizando
+aproximadamente 7-9 GB no pico. Nao ha ganho marginal em ter mais
+RAM do que o necessario para o maior modelo + sistema.
+
+
+4. ESPECIFICACOES MINIMAS (CONFIGURACAO ATUAL)
+--------------------------------------------------------------------------------
+Hardware atual:
+  Notebook:          LENOVO 82MF
+  Processador:       AMD Ryzen 5 5500U (6 nucleos / 12 threads, ~2.1 GHz)
+  RAM:               5.85 GB DDR4
+  Armazenamento:     237.8 GB SSD (C:) + 237.8 GB HDD (G:)
+  Sistema:           Windows 10 Pro 64 bits
+  GPU:               Integrada (Radeon Graphics) - SEM aceleracao CUDA/ROCm
+
+Estado atual:
+  RAM livre em idle:      ~1.55 GB
+  RAM usada pelo Ollama:  minima em idle (keep_alive=0 descarrega modelos)
+  Modelos em disco:       10.5 GB (3 modelos)
+  Swap ativo:             SIM - essencial para operacao
+
+Requisitos minimos para funcionamento (keep_alive=0, swap aceito):
+  Item                    Especificacao
+  ----                    -------------
+  Processador             x86_64, 4+ nucleos, 2.0 GHz+
+  RAM                     6 GB (com swap, 8 GB sem swap)
+  Armazenamento           30 GB livres em SSD
+  Sistema Operacional     Windows 10/11, Linux, macOS
+  Conexao                 Apenas para download inicial dos modelos
+  GPU                     Nao obrigatoria (CPU-only funcional)
+
+Observacao: Com 6 GB de RAM, o modelo llava:7b (4.7 GB) nao cabe
+integralmente na memoria disponivel, exigindo swap em disco. Isso
+resulta em tempos de resposta de 2 a 10 minutos por imagem,
+dependendo do conteudo. keep_alive=0 significa que cada chamada
+recarrega o modelo do swap, aumentando ainda mais a latencia.
+
+
+5. ESPECIFICACOES RECOMENDADAS POR TIER
+--------------------------------------------------------------------------------
+Com keep_alive=0, o requisito de RAM e definido pelo maior modelo
+individual, nao pela soma de todos. Abaixo, 4 tiers de hardware com
+modelos sugeridos para cada nivel.
+
+5.1 TIER ECONOMICO (Configuracao similar a atual, swap aceito)
+  Uso: Testes, desenvolvimento, uso pessoal com paciencia
+  Modelos: llava:7b + phi3:mini + qwen2.5:1.5b
+  RAM total necessaria: 6 GB + swap (8 GB sem swap)
+  GPU: Nao obrigatoria
+  Tempo estimado por imagem: 2 - 10 minutos
+  Custo estimado de hardware: ~R$ 0 (aproveitando maquina existente)
+
+5.2 TIER BASICO (CPU sem swap, operacao viavel)
+  Uso: Uso pessoal com experiencia aceitavel
+  Modelos: llava:7b + phi3:mini + qwen2.5:1.5b
+  RAM total necessaria: 8 - 16 GB
+  GPU: Nao obrigatoria (CPU-only)
+  Tempo estimado por imagem: 30 - 90 segundos
+  Custo estimado de hardware: ~R$ 300 - 800 (upgrade RAM)
+
+5.3 TIER INTERMEDIARIO (GPU dedicada entrada)
+  Uso: Uso profissional com qualidade superior
+  Modelos: qwen2.5vl:7b (visao+texto) + qwen2.5:1.5b (traducao)
+           ou gemma4:E4B (visao+texto) + qwen2.5:1.5b
+  RAM total necessaria: 16 GB
+  GPU: 6 - 8 GB VRAM (RTX 2060/3060, AMD RX 6600+, Apple M1+)
+  Tempo estimado por imagem: 5 - 15 segundos
+  Custo estimado de hardware: ~R$ 3.000 - 6.000
+
+5.4 TIER PROFISSIONAL (Alta precisao, inferencia em segundos)
+  Uso: Producao, multi-usuario, alta qualidade
+  Modelos: llama3.2-vision:11b (visao+texto) + qwen2.5:1.5b (traducao)
+           ou qwen3-vl:8b (visao+texto) + qwen2.5:1.5b
+           ou gemma3:27b (visao+texto) + qwen2.5:1.5b
+  RAM total necessaria: 32 GB (16 GB minimo)
+  GPU: 12 GB+ VRAM (RTX 3060 12GB+, RTX 4070+, Apple M2+ 16GB,
+       AMD RX 6800+ ROCm)
+  Tempo estimado por imagem: 1 - 5 segundos
+  Custo estimado de hardware: ~R$ 8.000 - 18.000
+
+  Item                    Recomendado              Justificativa
+  ----                    -----------              -------------
+  Processador             8+ nucleos, 3.5 GHz+     Processamento rapido do
+                                                    pipeline Python + Ollama
+
+  RAM                     32 GB                     Permite manter 2 modelos
+                                                    em RAM se keep_alive for
+                                                    ajustado; com keep_alive=0,
+                                                    16 GB ja sao suficientes
+
+  GPU                     NVIDIA RTX 3060 12GB+    Inferencia 10-50x mais
+                          (ou superior)             rapida que CPU; modelos
+                          AMD com ROCm suportado    7-11B cabem em VRAM 12 GB
+                          Apple Silicon M2+ (16GB)
+
+  Armazenamento           100 GB+ NVMe SSD         Modelos de alta precisao
+                                                    ocupam 15-40 GB cada;
+                                                    NVMe reduz tempo de carga
+
+  Sistema                 Linux (Ubuntu 22.04+     Melhor suporte Ollama,
+                          ou similar)               gerenciamento de memoria
+                                                    superior ao Windows
+
+  Rede                    Opcional                  Modelos baixados uma vez;
+                                                    operacao 100% offline
+
+
+6. MODELOS MODERNOS DISPONIVEIS (2026)
+--------------------------------------------------------------------------------
+Modelos de visao-linguagem (VLM) disponiveis via Ollama em 2026,
+compativeis com o pipeline do Bot Acess. A escolha do modelo define
+o tier de hardware necessario.
+
+Legenda da coluna Pipeline:
+  V = Visao (descricao de layout, cores, objetos)
+  T = Texto (extracao de texto literal de imagens)
+  R = Roteamento (decisao de pipeline)
+  TR = Traducao (EN -> PT-BR)
+
+Modelo                    Param.   Tamanho  RAM/VRAM  Pipeline            Tier
+------                    ------   -------  --------  --------            ----
+llava:7b                  7B       4.7 GB   5-7 GB    V + T               Economico/Basico
+
+phi3:mini                 3.8B     2.2 GB   2.5-3.5   R                   Economico/Basico
+                                                    GB
+
+qwen2.5:1.5b              1.5B     986 MB   1.2-2.0  TR                  Todos os tiers
+                                                    GB
+
+gemma4:E2B                2.6B     1.6 GB   2-3 GB   V + T               Economico/Basico
+(Google, Abr/2026)                                                       (CPU viavel)
+
+gemma4:E4B                4B       2.5 GB   3-4 GB   V + T               Intermediario
+(Google, Abr/2026)                                                       (CPU possivel,
+                                                                         GPU recomendada)
+
+qwen2.5vl:7b              7B       5.2 GB   6-8 GB   V + T               Intermediario
+(Alibaba, Set/2025)                                                      (GPU 6-8 GB)
+
+llama3.2-vision:11b       11B      8.5 GB   12-16    V + T               Profissional
+(Meta, Set/2025)                                GB                      (GPU 12 GB+)
+
+qwen3-vl:8b               ~8B      ~6 GB    8-12 GB  V + T               Profissional
+(Alibaba, Abr/2026)                                                      (GPU 8-12 GB)
+
+gemma3:27b                27B      15 GB    20-24    V + T               Profissional
+(Google, Mar/2025)                              GB                       (GPU 16-24 GB,
+                                                                         apenas GPU)
+
+gemma4 (full)             26-31B   ~18 GB   24-32    V + T               Profissional+
+(Google, Abr/2026)                              GB                       (GPU 24 GB+)
+
+Notas sobre os modelos:
+  - gemma4:E2B e E4B sao versoes destiladas/quantizadas do gemma4,
+    rodando viavelmente em CPU. Otimos custo-beneficio para upgrade
+    sem trocar de GPU.
+  - qwen2.5vl:7b e um excelente custo-beneficio em GPU 6-8 GB:
+    qualidade similar ao llama3.2-vision:11b com menos VRAM.
+  - qwen3-vl:8b (Abr/2026) e a versao mais recente; suporta
+    raciocinio multimodal avancado, ideal para documentos complexos.
+  - gemma3:27b e o modelo mais pesado viavel em GPU unica (24 GB VRAM);
+    qualidade estado-da-arte para extracao de texto.
+  - gemma4 (full) exige GPU empresarial (A5000, A6000, H100);
+    incluido para referencia futura.
+  - Todos os modelos listados funcionam com keep_alive=0, mas tiers
+    Intermediario+ podem se beneficiar de keep_alive>0 se a RAM/VRAM
+    permitir.
+
+
+7. COMPARATIVO DE PERFORMANCE ESTIMADO
+--------------------------------------------------------------------------------
+Cenario                    Tempo por imagem       RAM usada    GPU necessaria
+-------                    ------------------     ---------    --------------
+Minimo (atual, CPU+swap)   2 - 10 min             ~5.5 GB      Nao
+Basico (CPU 16GB)          30 - 60 seg            ~6 GB        Nao
+Intermediario (GPU 8GB)    5 - 15 seg             ~8 GB VRAM   Sim (RTX 2060+)
+Profissional (GPU 12GB)    1 - 5 seg              ~12 GB VRAM  Sim (RTX 3060+)
+
+Nota: Valores consideram keep_alive=0. Com keep_alive>0, o tempo
+de carga inicial e eliminado, reduzindo o tempo em 10-30% dependendo
+do modelo e do disco.
+
+
+8. OBSERVACOES IMPORTANTES
+--------------------------------------------------------------------------------
+1. Sem GPU, o llava:7b executa exclusivamente em CPU, consumindo toda
+   a RAM disponivel e utilizando swap intensivamente.
+
+2. keep_alive=0 e configuracao definitiva e intencional do projeto.
+   Cada modelo e descarregado da RAM imediatamente apos responder.
+   Isso minimiza consumo ocioso de RAM mas aumenta latencia: o modelo
+   precisa ser recarregado do disco/swap a cada etapa do pipeline.
+   Nao ha previsao de alteracao deste comportamento.
+
+3. Com keep_alive=0, o requisito de RAM e definido pelo peso do maior
+   modelo individual (llava:7b = 5-7 GB), nao pela soma de todos os
+   modelos. Isso significa que 16 GB de RAM sao mais que suficientes
+   mesmo para pipelines complexos.
+
+4. O Windows 10 possui gerenciamento de swap inferior ao Linux para
+   cargas de trabalho de IA. Migrar para Linux pode melhorar performance
+   em ate 30% no mesmo hardware.
+
+5. O Tesseract OCR foi removido da pipeline principal. A extracao de
+   texto e feita exclusivamente pelo llava:7b, que oferece qualidade
+   superior em documentos complexos e imagens com baixa iluminacao.
+
+6. Para aproveitar modelos modernos como qwen2.5vl:7b ou gemma4:E4B
+   sem investir em GPU, e possivel mante-los em CPU com 16 GB de RAM
+   e keep_alive=0. A experiencia sera superior ao llava:7b atual,
+   mas ainda lenta (30-90s por imagem).
+
+7. A migracao de llava:7b para um modelo moderno (gemma4:E4B,
+   qwen2.5vl:7b, etc.) requer apenas trocar a variavel VISION_MODEL
+   no .env e reinstalar o modelo via "ollama pull". Nenhuma alteracao
+   de codigo e necessaria.
+
+
+9. CONTATO
+--------------------------------------------------------------------------------
+Para mais informacoes sobre o projeto, requisitos ou deploy:
+  Repositorio: /bot-acess
+  Documentacao: README.md, arquitetura.md, agentes/*.md
+
+================================================================================
+  FIM DO RELATORIO
+================================================================================

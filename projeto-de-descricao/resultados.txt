@@ -1,0 +1,65 @@
+resultado do bot: A imagem mostra um pedaço de papel branco com texto preto e assinatura, que parece ser um documento médico ou prescrição. O documento é dirigido a "José María Carvalho", sugerindo que pode estar relacionado à saúde do paciente. O texto no papel inclui frases como "HMCF Hospital M.D.", "HMCF Hospital M.D." e "HMCF Hospital M.D.", indicando que este documento provém de um hospital ou unidade médica.
+
+resultado do chatgpt: A imagem mostra uma folha branca de documento hospitalar fotografada sobre uma superfície verde-escura texturizada, provavelmente uma mesa ou tecido. A folha ocupa quase toda a imagem e está alinhada na vertical. O documento tem bordas pretas finas formando um retângulo em volta de todo o conteúdo.
+No topo esquerdo há um logotipo circular em preto e branco. Dentro do círculo aparece o símbolo tradicional da medicina — um bastão com uma serpente enrolada. Acima do símbolo estão as letras “SPDM”.
+Ao lado do logotipo, centralizado no topo da página, aparece o cabeçalho em letras pretas:
+“HMJCF- Hospital Mun. Dr. José de Carvalho Florence”
+Logo abaixo:
+“OSS / SPDM - Associação Paulista para o Desenvolvimento da Medicina”
+Em seguida:
+“CNPJ: 61.699567/0012-45”
+Mais abaixo, centralizado e em letras grandes e negrito, está o título:
+“DECLARAÇÃO”
+Abaixo do título há um texto declaratório. Algumas partes estão em negrito, principalmente nomes, datas e horários. O texto diz:
+“Declaro para os devidos fins que o(a) Sr.(a.) JENNIFER DE OLIVEIRA ALVES,
+portador(a) da cédula de identidade RG nº 05917401764, compareceu a unidade:
+HMJCF- Hospital Mun. Dr. José de Carvalho Florence
+no dia 30/04/2026 no período 16:20hs e saída no dia 30/04/2026 às 20:25hs.”
+Depois disso aparece uma linha informando o motivo da presença:
+“Para: [X] Consulta [ ] Acompanhamento Familiar [ ] Visitante [ ] Outros”
+A opção “Consulta” está marcada com um X.
+Mais abaixo há campos vazios sem preenchimento:
+“Nome do Paciente:”
+“CPF do Paciente:”
+Depois:
+“Observação:”
+A área de observação está completamente em branco.
+Na metade inferior da página há um texto dizendo:
+“Pela veracidade legitima da presente, passamos a assiná-la para que produza seus efeitos.”
+Abaixo, centralizado, aparece:
+“SAO JOSE DOS CAMPOS - SP, 30 de abril de 2026”
+Na parte inferior central há uma linha de assinatura. Acima dela lê-se:
+“Assinatura:”
+Sobre a linha existe uma assinatura feita à caneta azul. A assinatura parece dizer “Lucélia” ou algo semelhante em escrita cursiva.
+Logo abaixo da assinatura está escrito:
+“Usuário: 5409655”
+Abaixo disso há um carimbo retangular em tinta escura com o CNPJ em destaque:
+“61.699.567/0012-45”
+Dentro do carimbo também aparece:
+“SPDM - ASSOCIAÇÃO PAULISTA PARA O
+DESENVOLVIMENTO DA MEDICINA
+HOSPITAL MUNICIPAL
+DR. JOSÉ DE CARVALHO FLORENCE”
+Na parte inferior do carimbo há o endereço:
+“RUA SAIGIRO NAKAMURA, 800 VILA INDUSTRIAL
+CEP 12 220 280 São Jose dos Campos - SP”
+Na borda inferior do documento há uma faixa estreita contendo informações pequenas.
+Do lado esquerdo:
+“R SAIGIRO NAKAMURA, 800 - VILA INDUSTRIAL - 12220280 - SAO JOSE DOS CAMPOS - SP”
+Do lado direito:
+“Impresso em: 30/04/2026 20:25:36”
+Características visuais gerais:
+• 
+O documento está muito bem iluminado.
+• 
+O papel parece limpo e sem amassados.
+• 
+A impressão é predominantemente preta.
+• 
+Existem leves sombras nas bordas da folha, indicando iluminação vinda de cima.
+• 
+A fotografia foi tirada quase perfeitamente de frente, com pequena inclinação.
+• 
+A assinatura azul é o único elemento colorido além do fundo verde e do preto da impressão.
+• 
+O fundo verde ao redor da folha tem aparência levemente áspera ou emborrachada.

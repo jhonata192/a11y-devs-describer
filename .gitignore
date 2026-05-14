@@ -1,0 +1,9 @@
+.env
+temp/
+logs/*.log
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.tensorflow/
