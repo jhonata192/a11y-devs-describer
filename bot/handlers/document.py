@@ -51,6 +51,7 @@ async def process_file(
     file_id: str,
     filename: str,
     status: Message,
+    mode: str = "normal",
 ) -> None:
     with tempfile.TemporaryDirectory(dir=settings.temp_dir) as tmpdir:
         try:
@@ -65,7 +66,9 @@ async def process_file(
                 except Exception:
                     pass
 
-            extracted_text = await process(input_path, status_callback=atualizar_status)
+            extracted_text = await process(input_path, status_callback=atualizar_status, mode=mode)
+
+            await status.edit_text("✅ Conteudo extraido com sucesso! Preparando exportacao...")
 
             await status.edit_text("📝 Gerando versao acessivel...")
 
@@ -91,7 +94,7 @@ async def process_file(
                         caption=caption,
                     )
 
-            await status.edit_text("✅ Conversao concluida com sucesso!")
+            await status.edit_text("✅ Conversao concluida! Arquivos gerados em TXT, DOCX e PDF.")
 
         except Exception:
             logger.exception("Erro ao processar arquivo")

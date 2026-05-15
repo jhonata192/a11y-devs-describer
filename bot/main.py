@@ -2,6 +2,7 @@ import asyncio
 import sys
 
 from aiogram import Bot, Dispatcher
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
@@ -9,11 +10,13 @@ from bot.handlers.start import router as start_router
 from bot.handlers.document import router as document_router
 from bot.handlers.errors import router as error_router
 from bot.services.cleanup_service import periodic_cleanup
+from bot.services.history_service import init_db
 from bot.utils.logger import setup_logger, logger
 from config.settings import settings
 
 
 async def on_startup(bot: Bot) -> None:
+    init_db()
     asyncio.create_task(periodic_cleanup())
     logger.info("Bot iniciado")
 
@@ -30,7 +33,7 @@ def create_bot() -> Bot:
 
 
 def create_dispatcher() -> Dispatcher:
-    dp = Dispatcher()
+    dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(start_router)
     dp.include_router(document_router)
     dp.include_router(error_router)

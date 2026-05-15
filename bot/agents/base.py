@@ -1,5 +1,8 @@
+import base64
+
 import httpx
 
+from bot.utils.image_utils import compress_image
 from bot.utils.logger import logger
 from config.settings import settings
 
@@ -33,7 +36,9 @@ class BaseAgent:
             },
         }
         if is_image:
-            payload["images"] = [entrada]
+            img_bytes = base64.b64decode(entrada)
+            compressed = compress_image(img_bytes)
+            payload["images"] = [base64.b64encode(compressed).decode("utf-8")]
         else:
             payload["prompt"] = f"{prompt_final}\n\nTexto: {entrada}"
 

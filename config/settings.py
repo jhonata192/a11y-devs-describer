@@ -31,7 +31,7 @@ class Settings:
 def _default_extensions() -> set[str]:
     return {
         ".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif",
-        ".bmp", ".gif", ".webp",
+        ".bmp", ".gif", ".webp", ".docx", ".html",
     }
 
 

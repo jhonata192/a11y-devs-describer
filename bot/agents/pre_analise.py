@@ -16,6 +16,10 @@ class PreAnalise:
         ext = self.file_path.suffix.lower()
         if ext == ".pdf":
             self._data = self._analisar_pdf()
+        elif ext == ".docx":
+            self._data = self._analisar_docx()
+        elif ext == ".html":
+            self._data = self._analisar_html()
         else:
             self._data = self._analisar_imagem()
         logger.info("Pre-analise concluida: {}", self._data)
@@ -87,6 +91,36 @@ class PreAnalise:
                 "tamanho_bytes": self.file_path.stat().st_size,
                 "texto_extraido": "",
             }
+
+    def _analisar_docx(self) -> dict:
+        from bot.utils.file_parsers import extract_text_from_docx
+        text = extract_text_from_docx(self.file_path)
+        return {
+            "tipo": "docx",
+            "tamanho_bytes": self.file_path.stat().st_size,
+            "texto_embutido": True,
+            "total_chars": len(text),
+            "paginas": 1,
+            "possui_imagens": False,
+            "quantidade_imagens": 0,
+            "densidade_visual": "baixa",
+            "texto_extraido": text,
+        }
+
+    def _analisar_html(self) -> dict:
+        from bot.utils.file_parsers import extract_text_from_html
+        text = extract_text_from_html(self.file_path)
+        return {
+            "tipo": "html",
+            "tamanho_bytes": self.file_path.stat().st_size,
+            "texto_embutido": True,
+            "total_chars": len(text),
+            "paginas": 1,
+            "possui_imagens": False,
+            "quantidade_imagens": 0,
+            "densidade_visual": "baixa",
+            "texto_extraido": text,
+        }
 
     @staticmethod
     def _gcd(a: int, b: int) -> int:

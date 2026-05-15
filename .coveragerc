@@ -1,0 +1,20 @@
+[run]
+source = bot,config
+omit =
+    tests/*
+    temp/*
+    logs/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == "__main__":
+    logger.exception
+    logger.error
+    logger.warning
+    logger.debug
+    logger.info
+
+show_missing = True

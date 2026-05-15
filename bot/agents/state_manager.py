@@ -56,5 +56,18 @@ class StateManager:
     def errar(self, task_id: str, erro: str) -> None:
         self.atualizar(task_id, status="error", erro=erro)
 
+    def listar_tarefas(self) -> list[dict]:
+        return [t for t in self._tasks.values()]
+
+    def listar_tarefas_processing(self) -> list[dict]:
+        return [t for t in self._tasks.values() if t.get("status") == "processing"]
+
+    def cancelar(self, task_id: str) -> None:
+        task = self._tasks.get(task_id)
+        if task and task.get("status") == "processing":
+            task["status"] = "cancelled"
+            task["etapa_atual"] = "Cancelado pelo usuario"
+            task["fim"] = __import__("time").time()
+
 
 state_manager = StateManager()

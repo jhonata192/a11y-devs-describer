@@ -1,20 +1,20 @@
 import tempfile
 from pathlib import Path
 
+import pytest
 from PIL import Image
 
 from bot.agents.pre_analise import PreAnalise
 
 
-def test_pre_analise_imagem_png():
+@pytest.mark.asyncio
+async def test_pre_analise_imagem_png():
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
         path = Path(f.name)
         Image.new("RGB", (800, 600), color="red").save(f)
 
-    import asyncio
-
     pre = PreAnalise(path)
-    result = asyncio.get_event_loop().run_until_complete(pre.analisar())
+    result = await pre.analisar()
     path.unlink()
 
     assert result["tipo"] == "imagem"
@@ -24,15 +24,14 @@ def test_pre_analise_imagem_png():
     assert result["modo"] == "RGB"
 
 
-def test_pre_analise_imagem_jpg():
+@pytest.mark.asyncio
+async def test_pre_analise_imagem_jpg():
     with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
         path = Path(f.name)
         Image.new("RGB", (1920, 1080), color="blue").save(f, "JPEG")
 
-    import asyncio
-
     pre = PreAnalise(path)
-    result = asyncio.get_event_loop().run_until_complete(pre.analisar())
+    result = await pre.analisar()
     path.unlink()
 
     assert result["tipo"] == "imagem"
@@ -41,7 +40,8 @@ def test_pre_analise_imagem_jpg():
     assert result["proporcao"] == "16:9"
 
 
-def test_pre_analise_pdf_com_texto():
+@pytest.mark.asyncio
+async def test_pre_analise_pdf_com_texto():
     from fpdf import FPDF
 
     pdf = FPDF()
@@ -54,10 +54,8 @@ def test_pre_analise_pdf_com_texto():
         path = Path(f.name)
         f.write(pdf_bytes)
 
-    import asyncio
-
     pre = PreAnalise(path)
-    result = asyncio.get_event_loop().run_until_complete(pre.analisar())
+    result = await pre.analisar()
     path.unlink()
 
     assert result["tipo"] == "pdf"
@@ -67,7 +65,8 @@ def test_pre_analise_pdf_com_texto():
     assert result["densidade_visual"] == "baixa"
 
 
-def test_pre_analise_pdf_sem_texto_detectado():
+@pytest.mark.asyncio
+async def test_pre_analise_pdf_sem_texto_detectado():
     import fitz
 
     doc = fitz.open()
@@ -80,10 +79,8 @@ def test_pre_analise_pdf_sem_texto_detectado():
         path = Path(f.name)
         f.write(pdf_bytes)
 
-    import asyncio
-
     pre = PreAnalise(path)
-    result = asyncio.get_event_loop().run_until_complete(pre.analisar())
+    result = await pre.analisar()
     path.unlink()
 
     assert result["tipo"] == "pdf"

@@ -27,6 +27,13 @@ def aplicar_politicas(plan: dict, metadata: dict) -> dict:
     if "translation" not in steps:
         steps_to_add.append("translation")
 
+    if tipo == "pdf":
+        densidade = metadata.get("densidade_visual", "baixa")
+        texto_embutido = metadata.get("texto_embutido", False)
+        if densidade in ("alta", "media") or texto_embutido:
+            if "table_extraction" not in steps and "table_extraction" not in steps_to_add:
+                steps_to_add.append("table_extraction")
+
     if steps_to_add:
         steps = steps_to_add + steps
         if pipeline == "simple":
