@@ -7,3 +7,6 @@ __pycache__/
 dist/
 build/
 .tensorflow/
+.coverage
+.pytest_cache/
+*.db
