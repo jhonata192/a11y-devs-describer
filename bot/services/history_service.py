@@ -7,10 +7,10 @@ from bot.utils.logger import logger
 from config.settings import settings
 
 DB_PATH = settings.db_path
-_INITIALIZED = False
 
 
 def _criar_tabelas(conn: sqlite3.Connection) -> None:
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS conversoes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,13 +65,10 @@ def _criar_tabelas(conn: sqlite3.Connection) -> None:
 
 
 def get_connection():
-    global _INITIALIZED
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    if not _INITIALIZED:
-        _criar_tabelas(conn)
-        _INITIALIZED = True
+    _criar_tabelas(conn)
     return conn
 
 

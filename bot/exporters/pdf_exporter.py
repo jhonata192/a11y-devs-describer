@@ -20,6 +20,7 @@ class _OutlineDocTemplate(SimpleDocTemplate):
         super().__init__(*args, **kwargs)
         self._outline_data = []
         self._outline_counter = 0
+        self._prev_level = 0
 
     def afterFlowable(self, flowable):
         if isinstance(flowable, Paragraph):
@@ -27,15 +28,19 @@ class _OutlineDocTemplate(SimpleDocTemplate):
             level = {"AccessibleH1": 1, "AccessibleH2": 2, "AccessibleH3": 3}.get(name)
             if level is not None:
                 text = flowable.getPlainText()
-                self._outline_data.append((level, text, self.page))
+                adj_level = level - 1
+                if adj_level > self._prev_level + 1:
+                    adj_level = self._prev_level + 1
+                key = f"bm{self._outline_counter}"
+                self._outline_counter += 1
+                self.canv.bookmarkPage(key)
+                self._outline_data.append((adj_level, text, key))
+                self._prev_level = adj_level
         super().afterFlowable(flowable)
 
     def handle_pageEnd(self):
-        for level, text, page in self._outline_data:
-            if page == self.page:
-                key = f"bm{self._outline_counter}"
-                self._outline_counter += 1
-                self.canv.addOutlineEntry(text, key, level, closed=False)
+        for level, text, key in self._outline_data:
+            self.canv.addOutlineEntry(text, key, level, closed=False)
         super().handle_pageEnd()
 
 

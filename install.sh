@@ -1,40 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODEL="moondream"
 PIP_REQUIREMENTS="requirements.txt"
+OPENCODE_URL="http://127.0.0.1:4096"
 
 echo "========================================"
 echo "  Bot Acess — Instalacao automatica"
 echo "========================================"
 echo ""
 
-# ── 1. Verificar/instalar Ollama ──
-if command -v ollama &>/dev/null; then
-    echo "[OK] Ollama ja instalado."
+# ── 1. Verificar OpenCode serve ──
+echo "[...] Verificando OpenCode serve..."
+if curl -sf "${OPENCODE_URL}/global/health" > /dev/null 2>&1; then
+    echo "[OK] OpenCode serve esta em execucao."
 else
-    echo "[...] Instalando Ollama..."
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        curl -fsSL https://ollama.com/install.sh | sh
-    else
-        echo "[ERRO] Este script e para Linux. Use install.bat no Windows."
+    echo "[AVISO] OpenCode serve nao detectado em ${OPENCODE_URL}"
+    echo "        Certifique-se de que o OpenCode esta instalado e execute:"
+    echo "        opencode serve --port 4096 --hostname 127.0.0.1"
+    echo ""
+    echo "        Deseja continuar mesmo assim? (s/n)"
+    read -r CONTINUE
+    if [ "$CONTINUE" != "s" ] && [ "$CONTINUE" != "S" ]; then
         exit 1
     fi
 fi
 
-# ── 2. Iniciar Ollama (caso nao esteja rodando) ──
-if ! ollama list &>/dev/null; then
-    echo "[...] Iniciando servico Ollama..."
-    nohup ollama serve &>/dev/null &
-    sleep 3
-fi
-
-# ── 3. Baixar modelo ──
-echo "[...] Baixando modelo ${MODEL} (pode levar alguns minutos)..."
-ollama pull "$MODEL"
-echo "[OK] Modelo ${MODEL} baixado."
-
-# ── 4. Dependencias Python ──
+# ── 2. Dependencias Python ──
 if command -v pip &>/dev/null; then
     echo "[...] Instalando dependencias Python..."
     pip install -r "$PIP_REQUIREMENTS"
@@ -44,7 +35,7 @@ else
     echo "        pip install -r $PIP_REQUIREMENTS"
 fi
 
-# ── 5. Verificar .env ──
+# ── 3. Verificar .env ──
 if [ ! -f ".env" ]; then
     echo "[AVISO] Arquivo .env nao encontrado."
     echo "        Copie .env.example para .env e configure o BOT_TOKEN."

@@ -11,16 +11,15 @@ class Settings:
     temp_dir: Path = Path(os.getenv("TEMP_DIR", "temp"))
     data_dir: Path = Path(os.getenv("DATA_DIR", "data"))
     logs_dir: Path = Path(os.getenv("LOGS_DIR", "logs"))
-    ollama_url: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
-    vision_model: str = os.getenv("VISION_MODEL", "llava:7b")
-    router_model: str = os.getenv("ROUTER_MODEL", "phi3:mini")
-    translation_model: str = os.getenv("TRANSLATION_MODEL", "qwen2.5:1.5b")
-    keep_alive: int = int(os.getenv("KEEP_ALIVE", "0"))
-    ollama_timeout: int = int(os.getenv("OLLAMA_TIMEOUT", "3600"))
+    opencode_url: str = os.getenv("OPENCODE_URL", "http://127.0.0.1:4096")
+    opencode_model: str = os.getenv("OPENCODE_MODEL", "qwen3.6-plus-free")
+    request_timeout: int = int(os.getenv("REQUEST_TIMEOUT", "3600"))
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     allowed_extensions: set[str] = field(default_factory=lambda: _default_extensions())
-    ocr_model: str = os.getenv("OCR_MODEL", "qwen2.5:3b")
     tesseract_cmd: str = os.getenv("TESSERACT_CMD", "tesseract")
+    max_page_width: int = int(os.getenv("MAX_PAGE_WIDTH", "1600"))
+    jpg_quality: int = int(os.getenv("JPG_QUALITY", "85"))
+    pdf_split_dpi: int = int(os.getenv("PDF_SPLIT_DPI", "150"))
 
     @property
     def bot_token_valid(self) -> bool:

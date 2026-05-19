@@ -3,26 +3,21 @@ import time
 from pathlib import Path
 from typing import Callable, Coroutine
 
-from bot.agents import DescritorVisual, OCRAgent, RevisorOCR, TaskCancelledError, Tradutor
-from bot.agents.pipeline_executor import PipelineExecutor
-from bot.agents.policies import aplicar_politicas
-from bot.agents.pre_analise import PreAnalise
-from bot.agents.router_ia import RouterIA
+from bot.agents.agente_unico import AgenteUnico
 from bot.agents.state_manager import TaskCancelledError, state_manager
 from bot.services.cache import get_cached, set_cache
 from bot.services.history_service import finalizar_conversao, registrar_conversao
 from bot.services.queue_service import QueueItem, processing_queue
-from bot.utils.image_utils import compress_image
 from bot.utils.logger import logger
 
-router = RouterIA()
-executor = PipelineExecutor()
-CACHE_VERSION = "hibrido-v4"
+agente = AgenteUnico()
+CACHE_VERSION = "opencode-v1"
 
 
 def _limpar_tarefas_orfas():
     try:
         from bot.services.history_service import get_connection
+
         conn = get_connection()
         conn.execute(
             "UPDATE conversoes SET status='error', erro='Stale: process interrupted' "
@@ -59,58 +54,28 @@ async def process(
     )
 
     try:
+        state_manager.atualizar(task_id, etapa="Preparando arquivo", progresso=0.1)
+        state_manager.verificar_cancelamento(task_id)
+
         if status_callback:
-            await status_callback("📄 Analisando estrutura do arquivo...")
-        state_manager.atualizar(task_id, etapa="Pre-analise", progresso=0.1)
-        state_manager.verificar_cancelamento(task_id)
-        pre = PreAnalise(file_path)
-        metadata = await pre.analisar()
+            await status_callback("📄 Analisando arquivo...")
 
+        state_manager.atualizar(task_id, etapa="Processando com IA", progresso=0.3)
         state_manager.verificar_cancelamento(task_id)
-        if status_callback:
-            await status_callback("🧠 Planejando roteamento inteligente...")
-        state_manager.atualizar(task_id, etapa="Roteamento IA", progresso=0.3)
-        plan = await router.rotear(metadata)
-        plan = aplicar_politicas(plan, metadata)
-        logger.info("Plano: {}", plan)
 
-        if mode == "ocr":
-            plan["steps"] = ["text_extraction"]
-            if "translation" not in plan.get("steps", []):
-                plan.setdefault("steps", []).append("translation")
-        elif mode == "detalhado":
-            plan["detail_level"] = "alto"
-            steps = plan.setdefault("steps", [])
-            if "image_description" not in steps:
-                steps.insert(0, "image_description")
-            if "summarize" not in steps:
-                steps.append("summarize")
-
-        state_manager.verificar_cancelamento(task_id)
-        state_manager.atualizar(
-            task_id,
-            etapa=f"Executando pipeline: {plan['pipeline']}",
-            progresso=0.5,
-        )
-        resultado = await executor.executar(
-            plan, file_path, metadata, status_callback, task_id=task_id
-        )
+        resultado = await agente.executar(file_path, file_path.parent, status_callback)
 
         state_manager.verificar_cancelamento(task_id)
         if not resultado.strip():
-            logger.warning("Pipeline vazio, tentando fallback")
-            if status_callback:
-                await status_callback("⚠️ Usando rota alternativa de processamento...")
-            resultado = await _fallback_com_llava(file_path, status_callback, task_id=task_id)
+            raise RuntimeError("Resposta vazia do agente")
 
-        state_manager.verificar_cancelamento(task_id)
         state_manager.finalizar(task_id, resultado)
         set_cache(file_path, resultado, CACHE_VERSION)
 
         finalizar_conversao(
             task_id=task_id,
             status="done",
-            pipeline=plan.get("pipeline", ""),
+            pipeline="opencode-unico",
             resultado_resumo=resultado[:200],
             tempo_segundos=time.time() - inicio,
         )
@@ -132,15 +97,7 @@ async def process(
     except Exception as e:
         logger.error("Erro no pipeline: {}: {}", type(e).__name__, e)
         state_manager.errar(task_id, str(e))
-        if status_callback:
-            await status_callback("⚠️ Erro no pipeline principal. Tentando rota alternativa...")
-        try:
-            fallback = await _fallback_com_llava(file_path, status_callback, task_id=task_id)
-        except Exception as e2:
-            logger.error("Fallback tambem falhou: {}: {}", type(e2).__name__, e2)
-            fallback = _fallback_texto_simples(file_path)
-            if status_callback:
-                await status_callback("❌ Nao foi possivel processar o arquivo.")
+        fallback = _fallback_texto_simples(file_path)
         state_manager.atualizar(task_id, resultado=fallback)
         set_cache(file_path, fallback, CACHE_VERSION)
 
@@ -151,6 +108,9 @@ async def process(
             resultado_resumo=fallback[:200],
             tempo_segundos=time.time() - inicio,
         )
+
+        if status_callback:
+            await status_callback("❌ Nao foi possivel processar o arquivo.")
         return fallback
 
 
@@ -161,7 +121,6 @@ async def process_with_queue(
     chat_id: int = 0,
     mode: str = "normal",
 ) -> str:
-    from bot.agents.state_manager import state_manager
     task_id = state_manager.criar_tarefa(file_path)
     item = QueueItem(
         user_id=user_id,
@@ -200,150 +159,23 @@ async def process_with_queue(
 
 
 def _fallback_texto_simples(file_path: Path) -> str:
-    return (
-        "Nao foi possivel processar a imagem automaticamente. "
-        "Tente enviar uma imagem mais clara ou em formato diferente."
-    )
-
-
-async def _fallback_com_llava(
-    file_path: Path,
-    status_callback: Callable[[str], Coroutine] | None = None,
-    task_id: str | None = None,
-) -> str:
     ext = file_path.suffix.lower()
-    descricao = ""
-    texto = ""
+    if ext == ".pdf":
+        try:
+            import fitz
 
-    if status_callback:
-        await status_callback("👁️ Descrevendo elementos visuais...")
-    try:
-        if ext == ".pdf":
-            descricao = await asyncio.wait_for(
-                _fallback_descrever_pdf(file_path, status_callback), timeout=600
-            )
-        else:
-            descricao = await asyncio.wait_for(
-                _fallback_descrever_imagem(file_path), timeout=600
-            )
-    except Exception as e:
-        logger.error("Erro descricao fallback: {}", e)
-
-    if status_callback:
-        await status_callback("📖 Extraindo texto...")
-    try:
-        texto = await asyncio.wait_for(
-            _fallback_extrair_texto(file_path, status_callback, task_id=task_id), timeout=600
-        )
-    except Exception as e:
-        logger.error("Erro extracao texto fallback: {}", e)
-
-    parts = []
-    if descricao.strip():
-        parts.append(descricao.strip())
-    if texto.strip():
-        parts.append(f"\n---\n\n**Texto extraido:**\n{texto.strip()}")
-
-    raw = "\n\n".join(parts)
-    if not raw.strip():
-        return _fallback_texto_simples(file_path)
-
-    if status_callback:
-        await status_callback("🌐 Traduzindo para portugues...")
-    try:
-        raw = await asyncio.wait_for(tradutor.executar(raw), timeout=120)
-    except Exception as e:
-        logger.error("Erro traducao fallback: {}", e)
-
-    if status_callback:
-        await status_callback("✅ Processamento finalizado!")
-    return raw
-
-
-async def _fallback_descrever_pdf(file_path: Path, status_callback=None) -> str:
-    import base64
-    import fitz
-
-    doc = fitz.open(file_path)
-    try:
-        total = len(doc)
-        pages_to_process = min(total, 5)
-        textos = []
-        for i in range(pages_to_process):
-            page = doc[i]
-            pix = page.get_pixmap(dpi=150)
-            img_bytes = compress_image(pix.tobytes("png"))
-            img_b64 = base64.b64encode(img_bytes).decode("utf-8")
-            if status_callback:
-                await status_callback(f"👁️ Descrevendo pagina {i+1} de {pages_to_process}...")
-            desc = await descritor.executar(img_b64, is_image=True)
-            if desc:
-                textos.append(f"--- Pagina {i + 1} ---\n{desc}")
-        return "\n\n".join(textos) if textos else ""
-    finally:
-        doc.close()
-
-
-async def _fallback_descrever_imagem(file_path: Path) -> str:
-    import base64
-
-    with open(file_path, "rb") as f:
-        img_bytes = f.read()
-    img_bytes = compress_image(img_bytes)
-    img_b64 = base64.b64encode(img_bytes).decode("utf-8")
-    return await descritor.executar(img_b64, is_image=True)
-
-
-async def _fallback_extrair_texto(file_path: Path, status_callback=None, task_id: str | None = None) -> str:
-    import base64
-
-    if file_path.suffix.lower() == ".pdf":
-        return await _fallback_extrair_texto_pdf(file_path, status_callback, task_id=task_id)
-
-    with open(file_path, "rb") as f:
-        img_bytes = f.read()
-    raw = await ocr_agent.extrair_bytes(img_bytes)
-    if raw and task_id:
-        from bot.services.history_service import salvar_ocr_raw
-        salvar_ocr_raw(task_id, 1, raw)
-    if raw:
-        revisado = await revisor_ocr.executar(raw)
-        if revisado:
-            return revisado
-    return raw
-
-
-async def _fallback_extrair_texto_pdf(file_path: Path, status_callback=None, task_id: str | None = None) -> str:
-    import fitz
-
-    doc = fitz.open(file_path)
-    try:
-        total = len(doc)
-        pages_to_process = min(total, 5)
-        textos = []
-        for i in range(pages_to_process):
-            page = doc[i]
-            pix = page.get_pixmap(dpi=200)
-            img_bytes = compress_image(pix.tobytes("png"))
-            if status_callback:
-                await status_callback(f"📖 OCR Tesseract pagina {i+1} de {pages_to_process}...")
-            text = await ocr_agent.extrair_bytes(img_bytes)
-            if text:
-                textos.append(f"--- Pagina {i + 1} ---\n{text}")
-                if task_id:
-                    from bot.services.history_service import salvar_ocr_raw
-                    salvar_ocr_raw(task_id, i + 1, text)
-        raw = "\n\n".join(textos) if textos else ""
-        if raw:
-            revisado = await revisor_ocr.executar(raw)
-            if revisado:
-                return revisado
-        return raw
-    finally:
-        doc.close()
-
-
-descritor = DescritorVisual()
-tradutor = Tradutor()
-ocr_agent = OCRAgent()
-revisor_ocr = RevisorOCR()
+            doc = fitz.open(file_path)
+            texts = []
+            for i in range(min(len(doc), 10)):
+                text = doc[i].get_text().strip()
+                if text:
+                    texts.append(f"--- Pagina {i + 1} ---\n{text}")
+            doc.close()
+            if texts:
+                return "\n\n".join(texts)
+        except Exception:
+            pass
+    return (
+        "Nao foi possivel processar o arquivo automaticamente. "
+        "Tente enviar em formato diferente."
+    )

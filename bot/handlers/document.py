@@ -1,8 +1,10 @@
+import asyncio
 import tempfile
 from pathlib import Path
 
 from aiogram import Router, F
 from aiogram.types import FSInputFile, Message, Document, PhotoSize
+from aiogram.exceptions import TelegramRetryAfter
 
 from bot.services.file_service import download_file
 from bot.agente_mestre import process
@@ -19,6 +21,34 @@ router = Router()
 OUTPUT_DIR = settings.temp_dir / "output"
 
 user_modes: dict[int, str] = {}
+
+
+async def _send_with_retry(bot, chat_id: int, msg: str, max_retries: int = 3) -> None:
+    for attempt in range(max_retries):
+        try:
+            await bot.send_message(chat_id, msg)
+            return
+        except TelegramRetryAfter as e:
+            wait = e.retry_after + attempt * 5
+            logger.warning("Telegram rate limit, aguardando {}s: {}", wait, msg[:50])
+            await asyncio.sleep(wait)
+    logger.error("Falha apos {} tentativas para enviar mensagem", max_retries)
+
+
+async def _send_doc_with_retry(message: Message, out_path: Path, caption: str, max_retries: int = 3) -> bool:
+    for attempt in range(max_retries):
+        try:
+            await message.answer_document(
+                document=FSInputFile(out_path),
+                caption=caption,
+            )
+            return True
+        except TelegramRetryAfter as e:
+            wait = e.retry_after + attempt * 5
+            logger.warning("Telegram rate limit no envio de {}, aguardando {}s", out_path.name, wait)
+            await asyncio.sleep(wait)
+    logger.error("Falha apos {} tentativas para enviar {}", max_retries, out_path.name)
+    return False
 
 
 @router.message(F.document)
@@ -65,10 +95,7 @@ async def process_file(
             bot = message.bot
 
             async def send(msg: str) -> None:
-                try:
-                    await bot.send_message(chat_id, msg)
-                except Exception:
-                    pass
+                await _send_with_retry(bot, chat_id, msg)
 
             await send("⬇️ Baixando arquivo...")
             await download_file(message.bot, file_id, input_path)
@@ -95,10 +122,7 @@ async def process_file(
 
             for out_path in [txt_path, docx_path, pdf_path]:
                 if out_path.exists():
-                    await message.answer_document(
-                        document=FSInputFile(out_path),
-                        caption=caption,
-                    )
+                    await _send_doc_with_retry(message, out_path, caption)
 
             await send("✅ Conversao concluida! Arquivos gerados em TXT, DOCX e PDF.")
 
