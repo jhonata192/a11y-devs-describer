@@ -73,7 +73,12 @@ def export_accessible_document(
     pandoc = _pandoc_bin()
     if format_name == "html":
         if pandoc:
-            return _render_with_pandoc(ast, output_path, "html5", extra_args=["--toc", "--standalone"])
+            return _render_with_pandoc(
+                ast, 
+                output_path, 
+                "html5", 
+                extra_args=["--toc", "--standalone", "--mathjax"]
+            )
         return render_html(filtered, output_path, profile_name=profile)
     if format_name == "docx":
         if pandoc:

@@ -1,0 +1,35 @@
+RELATÓRIO DE CORREÇÃO TÉCNICA - PARSER DE LISTAS
+
+PROBLEMA IDENTIFICADO:
+Ao processar documentos com listas (como a lista de metais e suas densidades), o bot estava gerando arquivos onde todos os itens eram numerados com "1.". 
+
+Exemplo do erro:
+1. Aluminum (2.70)
+1. Cadmium (8.65)
+1. Chromium (7.19)
+
+CAUSA RAIZ:
+O componente 'structure_parser.py' processava o texto linha por linha de forma isolada. Cada vez que ele encontrava um padrão de lista (ex: "1. " ou "- "), ele criava um novo objeto de lista contendo apenas aquele item. Como os renderizadores de documento (Word, HTML, PDF) sempre reiniciam a contagem ao encontrar uma nova lista, todos os itens tornavam-se o "primeiro item" de suas respectivas listas individuais.
+
+SOLUÇÃO IMPLEMENTADA:
+
+1. Agrupamento de Itens Consecutivos:
+Implementei a função '_parse_list_items' no parser. Agora, quando o sistema detecta um item de lista, ele continua lendo as linhas seguintes para verificar se elas também são itens. Se forem, ele as agrupa em um único bloco estruturado.
+
+2. Inteligência de Continuidade:
+O parser agora ignora linhas vazias isoladas entre itens de lista, permitindo que listas com espaçamento maior ainda sejam tratadas como uma única entidade.
+
+3. Suporte a Múltiplos Formatos de Marcadores:
+Melhorei a detecção via Expressões Regulares (Regex) para suportar diversos estilos de numeração, como:
+- "1. Item"
+- "1) Item"
+- "(1) Item"
+- "- Item" (Listas não ordenadas)
+
+BENEFÍCIOS:
+- Numeração Sequencial Correta: As listas agora seguem a contagem correta (1, 2, 3...) nos arquivos exportados.
+- Melhor Semântica para Leitores de Tela: Pessoas cegas agora ouvirão "Lista com 20 itens" em vez de ouvirem 20 listas separadas de um único item cada, o que melhora drasticamente a navegação e a experiência de usuário.
+- Robustez no DOCX e HTML: A estrutura gerada agora é compatível com os padrões nativos do Microsoft Word e da Web (tags <ul> e <ol>).
+
+Data da Correção: 28 de Maio de 2026
+Status: Concluído e Implementado.

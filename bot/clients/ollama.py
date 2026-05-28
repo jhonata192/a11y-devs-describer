@@ -51,8 +51,8 @@ class OllamaClient:
             "messages": messages,
             "temperature": 0,
             "seed": 42,
-            "max_tokens": 300,
-            "num_predict": 300
+            "max_tokens": 2000,
+            "num_ctx": 8192
         }
 
         headers = {

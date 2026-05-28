@@ -34,7 +34,8 @@ def _block_to_ast(block: dict[str, Any]) -> list[dict[str, Any]]:
     if block_type == "image":
         return [{"t": "Para", "c": _meta_inlines(block.get("alt_text", block.get("text", "")))}]
     if block_type == "math":
-        return [{"t": "Para", "c": [{"t": "Math", "c": [{"t": "InlineMath"}, block.get("text", "")]}]}]
+        math_type = "DisplayMath" if block.get("display") else "InlineMath"
+        return [{"t": "Para", "c": [{"t": "Math", "c": [{"t": math_type}, block.get("text", "")]}]}]
     if block_type in {"quote", "details", "note", "warning"}:
         return [{"t": "BlockQuote", "c": [{"t": "Para", "c": _meta_inlines(block.get("text", ""))}]}]
     return [{"t": "Para", "c": _meta_inlines(block.get("text", ""))}]

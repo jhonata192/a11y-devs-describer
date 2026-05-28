@@ -121,13 +121,14 @@ def _page_prompt(
     advanced_instructions = (
         "\n\nREGRAS DE FORMATAÇÃO E SEMÂNTICA:\n"
         "1. Se houver imagens, gráficos ou diagramas, forneça a "
-        "audiodescrição entre colchetes.\n"
-        "2. Preserve a ênfase do texto original usando Markdown apenas "
-        "quando necessário.\n"
-        "3. Para MATEMÁTICA: linearize fórmulas simples e use LaTeX para "
-        "expressões complexas.\n"
-        "4. Se um parágrafo termina com hífen ou parece continuar na "
-        "próxima página, apenas transcreva-o."
+        "audiodescrição entre colchetes: [Descrição: ...].\n"
+        "2. Para MATEMÁTICA, FÍSICA E QUÍMICA: use obrigatoriamente LaTeX. "
+        "Fórmulas simples em linha use $formula$. Fórmulas complexas ou em "
+        "bloco próprio use $$formula$$. Exemplo: $E=mc^2$.\n"
+        "3. Preserve a estrutura original usando Markdown: # para títulos, "
+        "- para listas, | para tabelas e ``` para código.\n"
+        "4. Se um parágrafo parece continuar na próxima página, transcreva-o "
+        "normalmente."
     )
 
     prompt = system_prompt + advanced_instructions
