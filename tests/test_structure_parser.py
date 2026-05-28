@@ -1,12 +1,13 @@
 from pipeline.structure_parser import parse_text_to_blocks
 
 
-def test_parse_text_to_blocks_assigns_ids_and_sanitizes_text():
+def test_parse_text_to_blocks_groups_lists_and_sanitizes_text():
     blocks = parse_text_to_blocks(
         (
             "# Titulo **forte**\n\n"
             "Paragrafo com `codigo` e __marcacao__.\n\n"
-            "- Item 1\n2. Item 2"
+            "- Item 1\n- Item 2\n\n"
+            "1. Item A\n2. Item B"
         )
     )
 
@@ -19,8 +20,29 @@ def test_parse_text_to_blocks_assigns_ids_and_sanitizes_text():
     assert len({block["id"] for block in blocks}) == len(blocks)
     assert blocks[0]["text"] == "Titulo forte"
     assert blocks[1]["text"] == "Paragrafo com codigo e marcacao."
-    assert blocks[2]["items"] == ["Item 1"]
+    assert blocks[2]["items"] == ["Item 1", "Item 2"]
+    assert blocks[2]["ordered"] is False
+    assert blocks[3]["items"] == ["Item A", "Item B"]
     assert blocks[3]["ordered"] is True
+
+
+def test_parse_text_to_blocks_math_latex():
+    blocks = parse_text_to_blocks(
+        "Texto antes.\n\n"
+        "$$E = mc^2$$\n\n"
+        "$$ \n"
+        "\\frac{1}{2} \n"
+        "$$\n\n"
+        "Texto depois."
+    )
+
+    assert blocks[1]["type"] == "math"
+    assert blocks[1]["text"] == "E = mc^2"
+    assert blocks[1]["display"] is True
+    
+    assert blocks[2]["type"] == "math"
+    assert "\\frac{1}{2}" in blocks[2]["text"]
+    assert blocks[2]["display"] is True
 
 
 def test_parse_text_to_blocks_keeps_code_fence_marker():
@@ -66,7 +88,4 @@ def test_parse_text_to_blocks_parses_plain_ordered_list_with_parenthesis():
 
     assert blocks[0]["type"] == "list"
     assert blocks[0]["ordered"] is True
-    assert blocks[0]["items"] == ["Primeiro item"]
-    assert blocks[1]["type"] == "list"
-    assert blocks[1]["ordered"] is True
-    assert blocks[1]["items"] == ["Segundo item"]
+    assert blocks[0]["items"] == ["Primeiro item", "Segundo item"]
